@@ -1,5 +1,13 @@
 import { type Band } from './types.js';
 export type Format = 'pretty' | 'json' | 'summary';
+/**
+ * Which engine resolves the lockfile and queries OSV.
+ *
+ * `builtin` needs nothing but Node; `osv-scanner` shells out to the binary,
+ * which covers far more ecosystems and can work offline; `auto` prefers the
+ * binary when it is installed and falls back to the built-in engine.
+ */
+export type ScanEngine = 'builtin' | 'osv-scanner' | 'auto';
 export interface Options {
     failOn: Band;
     failOnUnknown: boolean;
@@ -12,6 +20,7 @@ export interface Options {
     cacheTtlMs: number;
     offline: boolean;
     allVulns: boolean;
+    scanner: ScanEngine;
     scannerBin: string;
     packageManager: string | undefined;
     /** Block installs of versions published less than this long ago. 0 disables. */

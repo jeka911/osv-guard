@@ -108,7 +108,11 @@ export function normalize(raw) {
                 // Withdrawn advisories are noise, not findings.
                 if (primary?.withdrawn)
                     continue;
-                const { band, score, source: severitySource } = resolveSeverity(group.max_severity, primary?.database_specific?.severity, primary?.severity);
+                // Score across the whole group, not just its primary record: the GHSA
+                // and the CVE describing one flaw carry separate vectors, and
+                // osv-scanner's `max_severity` is the maximum of all of them.
+                const groupVectors = ids.flatMap((memberId) => byId.get(memberId)?.severity ?? []);
+                const { band, score, source: severitySource } = resolveSeverity(group.max_severity, primary?.database_specific?.severity, groupVectors.length > 0 ? groupVectors : primary?.severity);
                 const aliasSet = new Set([...ids, ...(group.aliases ?? [])]);
                 aliasSet.delete(id);
                 findings.push({

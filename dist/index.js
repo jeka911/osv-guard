@@ -15,4 +15,7 @@ export { evaluateCommand, parseHookInput, toHookOutput, isAgeExempt } from './ho
 export { resolveReleaseTime, isTooNew, ageMs, formatAge } from './releaseage.js';
 export { parseInstallCommand, parseSpec, isPackageArgument, isExactVersion, segments } from './installcmd.js';
 export { queryPackage, queryAll, isMalicious, toScanOutput } from './osvapi.js';
+export { runLocalScan, groupByAlias } from './scanlocal.js';
+export { readLockfiles, findForeignManifests, splitNameVersion, parseNpmLock, parsePnpmLock, parseYarnLock, parseBunLock, } from './lockfile.js';
+export { chooseEngine, unsupportedWarnings } from './engine.js';
 export * from './types.js';

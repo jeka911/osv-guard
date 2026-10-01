@@ -5,7 +5,7 @@ Two guards against known-bad dependencies, both backed by the [OSV](https://osv.
 | | What it stops | Needs |
 | --- | --- | --- |
 | [**Claude Code plugin**](#claude-code-plugin) | An agent **installing** a malicious or vulnerable package | Nothing but Claude Code |
-| [**npm run guard**](#cli) | **Executing** `npm run` commands and scripts against a vulnerable lockfile | Node 18+, the `osv-scanner` binary |
+| [**npm run guard**](#cli) | **Executing** `npm run` commands and scripts against a vulnerable lockfile | Nothing but Node 18+ |
 
 They cover different halves of the same problem. The CLI checks what is already in your lockfile before it lets a script start. The plugin checks a package *before* your agent is allowed to install it — the gap the CLI cannot reach, because once a bad dependency is in the lockfile its install scripts have already run.
 
@@ -91,16 +91,38 @@ osv-guard · scanned . (package-lock.json) 1.2s
 
 ### Requirements
 
-Node 18+, and the `osv-scanner` binary (v2) on your `PATH`:
+Node 18+. Nothing else — no binary to install, no account, no API key.
+
+osv-guard reads your lockfile itself and asks [OSV](https://osv.dev) about the exact versions it finds, in one batched request. What leaves your machine is a list of package names and versions, never your code.
+
+### Using the osv-scanner binary instead
+
+The built-in scanner reads **Node lockfiles only** — `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock` and `bun.lock`. For anything else, or to scan without a network, install [osv-scanner](https://github.com/google/osv-scanner) — Google's free, open-source scanner, which covers twenty-odd ecosystems:
 
 ```bash
 brew install osv-scanner
 ```
 
-Or `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`, or grab a
-[release binary](https://github.com/google/osv-scanner/releases). Point at a non-`PATH` install with `--scanner-bin`.
+Or `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`, or grab a [release binary](https://github.com/google/osv-scanner/releases). Then:
 
-[osv-scanner](https://github.com/google/osv-scanner) is a free, open-source vulnerability scanner built and maintained by **Google**. It needs no account or API key. By default it queries the OSV database over the network, sending dependency names and versions rather than your code; `--offline` uses a downloaded local copy instead.
+```bash
+osv-guard --scanner osv-scanner report      # always use the binary
+osv-guard --scanner auto report             # use it when installed, else built-in
+```
+
+Point at a non-`PATH` install with `--scanner-bin`, which selects the binary on its own.
+
+Findings are identical either way: both read the same OSV data, and both collapse a flaw's GHSA and CVE ids into one finding. Scores can differ by a decimal on advisories that publish only a CVSS **v4** vector, which the built-in scanner reports by band rather than approximating.
+
+If osv-guard finds a Go, Python, Rust or other non-Node manifest while the built-in scanner is running, it says so rather than letting the silence read as *clean*:
+
+```
+osv-guard: the built-in scanner reads Node lockfiles only — 1 Go, 1 PyPI manifests not checked
+osv-guard:   api/requirements.txt, go.mod
+osv-guard:   install osv-scanner and pass --scanner osv-scanner to cover Go, PyPI
+```
+
+And when there is **no** Node lockfile at all but osv-scanner is installed, osv-guard uses it automatically — a pure Go or Rust repo still gets scanned rather than being told it has no lockfile.
 
 ### Install
 
@@ -181,9 +203,10 @@ For long-lived, per-advisory suppressions prefer osv-scanner's own `osv-scanner.
 | Flag | Meaning |
 | --- | --- |
 | `--dir`, `-C <path>` | Directory to scan (default: the package npm runs from) |
-| `--scanner-bin <path>` | osv-scanner binary (default: `osv-scanner`) |
+| `--scanner <engine>` | `builtin` (default), `osv-scanner`, or `auto` |
+| `--scanner-bin <path>` | osv-scanner binary (default: `osv-scanner`); implies `--scanner osv-scanner` |
 | `--package-manager <pm>` | Force `npm`, `pnpm`, `yarn` or `bun` instead of detecting |
-| `--offline` | Use osv-scanner's local database, no network |
+| `--offline` | Use osv-scanner's local database, no network (implies `--scanner osv-scanner`) |
 | `--all-vulns` | Include findings osv-scanner considers unimportant or uncalled |
 | `--allow-no-lockfile` | Don't fail when no lockfile is present |
 | `--cache` | Reuse a recent scan for the same lockfile (**off by default**) |
@@ -216,7 +239,9 @@ Run osv-guard *inside* a package instead and it scans only that package, since t
 
 #### About lockfiles
 
-If there's no lockfile anywhere in the tree, osv-guard stops rather than scanning. osv-scanner would find nothing to resolve, and an empty result is indistinguishable from a clean one — a false green is worse than an error. Run `npm install`, or pass `--allow-no-lockfile` to accept an unchecked run.
+If there's no lockfile anywhere in the tree, osv-guard stops rather than scanning. There would be nothing to resolve, and an empty result is indistinguishable from a clean one — a false green is worse than an error. Run `npm install`, or pass `--allow-no-lockfile` to accept an unchecked run.
+
+`bun.lockb` is binary and can't be read; run `bun install --save-text-lockfile` to emit a `bun.lock` beside it, or use the osv-scanner binary.
 
 ### Output
 
@@ -237,7 +262,7 @@ Reports go to **stderr** and `--format=json` goes to stdout, so `osv-guard repor
 | `0` | Passed (and the script exited 0) |
 | `1` | Blocked by policy — the script was not run |
 | `2` | Usage or configuration error |
-| `3` | osv-scanner missing or failed |
+| `3` | The scan could not run — OSV unreachable, or osv-scanner missing/failed |
 | * | Otherwise, the script's own exit code |
 
 ### CI
@@ -247,7 +272,7 @@ Reports go to **stderr** and `--format=json` goes to stdout, so `osv-guard repor
 - run: npx osv-guard report --format json > osv.json
 ```
 
-Exit code `1` fails the job on a policy violation; `3` distinguishes a broken scanner from a real finding.
+Exit code `1` fails the job on a policy violation; `3` distinguishes a scan that couldn't run from a real finding.
 
 ---
 
@@ -258,6 +283,7 @@ Shared by the CLI and the plugin. Settings can live in `osv-guard.json`, `.osv-g
 ```json
 {
   "failOn": "high",
+  "scanner": "builtin",
   "max": { "critical": 0 },
   "ignore": ["GHSA-xxxx-xxxx-xxxx"],
   "ignoreUnfixed": true,
@@ -272,11 +298,11 @@ Findings are grouped the way osv-scanner groups them, so a flaw with both a GHSA
 
 Each group's band comes from the first available of:
 
-1. the group's `max_severity` (a CVSS base score osv-scanner computes),
+1. the group's `max_severity` (a CVSS base score osv-scanner computes, when the binary is in use),
 2. GitHub's `database_specific.severity` (`CRITICAL`/`HIGH`/`MODERATE`/`LOW`),
-3. a CVSS v3.x vector, scored locally.
+3. the highest CVSS v3.x vector in the group, scored locally.
 
-Anything left is reported as `unknown` rather than assumed benign. Unknowns don't block by default — `--fail-on-unknown` changes that. CVSS v4-only vectors currently land in `unknown`; in practice `max_severity` covers them.
+Anything left is reported as `unknown` rather than assumed benign. Unknowns don't block by default — `--fail-on-unknown` changes that. CVSS v4-only vectors are not scored, so an advisory with nothing else to go on lands in `unknown`; in practice GitHub's rating covers them.
 
 The suggested fix version is taken from the affected range that actually contains your installed version, so `axios@0.21.0` is told about `0.31.1`, not about a fix on the 1.x line.
 

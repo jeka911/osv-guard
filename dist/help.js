@@ -1,5 +1,5 @@
 export const HELP = `
-osv-guard — guard npm scripts behind an osv-scanner vulnerability check
+osv-guard — guard npm scripts behind a vulnerability check
 
 USAGE
   osv-guard [options] <target> [args...]      scan, then run <target>
@@ -38,9 +38,13 @@ SUPPRESSION
 SCANNING
   --dir, -C <path>        directory to scan (default: the package npm runs from;
                           scanning is recursive, so a monorepo root works)
+  --scanner <engine>      builtin | osv-scanner | auto (default: builtin)
+                          builtin reads lockfiles itself and queries osv.dev —
+                          no binary needed, Node ecosystems only
   --scanner-bin <path>    osv-scanner binary (default: osv-scanner)
   --package-manager <pm>  force npm | pnpm | yarn | bun instead of detecting
   --offline               use osv-scanner's local database, no network
+                          (implies --scanner osv-scanner)
   --all-vulns             include findings osv-scanner deems unimportant/uncalled
   --allow-no-lockfile     do not fail when no lockfile is present
   --cache                 reuse a recent scan for the same lockfile (off by default)
@@ -68,7 +72,7 @@ EXIT CODES
   0   scan passed (and the script exited 0)
   1   blocked by policy — the script was not run
   2   usage or configuration error
-  3   osv-scanner is missing or failed
+  3   the scan could not run (OSV unreachable, or osv-scanner missing/failed)
   *   otherwise, the script's own exit code
 
 SETUP

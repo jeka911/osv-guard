@@ -4,6 +4,15 @@ import { BANDS, type Band } from './types.js';
 
 export type Format = 'pretty' | 'json' | 'summary';
 
+/**
+ * Which engine resolves the lockfile and queries OSV.
+ *
+ * `builtin` needs nothing but Node; `osv-scanner` shells out to the binary,
+ * which covers far more ecosystems and can work offline; `auto` prefers the
+ * binary when it is installed and falls back to the built-in engine.
+ */
+export type ScanEngine = 'builtin' | 'osv-scanner' | 'auto';
+
 export interface Options {
   failOn: Band;
   failOnUnknown: boolean;
@@ -16,6 +25,7 @@ export interface Options {
   cacheTtlMs: number;
   offline: boolean;
   allVulns: boolean;
+  scanner: ScanEngine;
   scannerBin: string;
   packageManager: string | undefined;
   /** Block installs of versions published less than this long ago. 0 disables. */
@@ -52,6 +62,7 @@ export const DEFAULTS: Options = {
   cacheTtlMs: 60 * 60 * 1000,
   offline: false,
   allVulns: false,
+  scanner: 'builtin',
   scannerBin: 'osv-scanner',
   packageManager: undefined,
   // Seven days clears the window in which most malicious releases are caught
@@ -68,6 +79,17 @@ export class UsageError extends Error {}
 
 const BAND_SET = new Set<string>(BANDS);
 const FORMATS = new Set<Format>(['pretty', 'json', 'summary']);
+const ENGINES = new Set<ScanEngine>(['builtin', 'osv-scanner', 'auto']);
+
+function asEngine(value: string, label: string): ScanEngine {
+  const v = value.trim().toLowerCase();
+  // `scanner` and `binary` read naturally for "use the real thing".
+  const normalized = v === 'scanner' || v === 'binary' ? 'osv-scanner' : v;
+  if (!ENGINES.has(normalized as ScanEngine)) {
+    throw new UsageError(`${label} must be builtin, osv-scanner or auto (got "${value}")`);
+  }
+  return normalized as ScanEngine;
+}
 
 /** Accepts `1h`, `30m`, `45s`, `500ms`; a bare number is seconds. */
 export function parseDuration(input: string): number {
@@ -250,8 +272,14 @@ export function parseArgv(argv: string[]): ParsedArgv {
       case '--all-vulns':
         cli.allVulns = true;
         break;
+      case '--scanner':
+      case '--engine':
+        cli.scanner = asEngine(value(), name);
+        break;
       case '--scanner-bin':
         cli.scannerBin = value();
+        // Naming a binary is a clear statement that it should be used.
+        cli.scanner ??= 'osv-scanner';
         break;
       case '--package-manager':
       case '--pm':
@@ -377,6 +405,8 @@ function coerceConfig(raw: unknown, label: string): Partial<Options> {
   const allowNoLockfile = bool('allowNoLockfile');
   if (allowNoLockfile !== undefined) out.allowNoLockfile = allowNoLockfile;
 
+  const scanner = str('scanner');
+  if (scanner !== undefined) out.scanner = asEngine(scanner, `${label}: scanner`);
   const scannerBin = str('scannerBin');
   if (scannerBin !== undefined) out.scannerBin = scannerBin;
   const packageManager = str('packageManager');

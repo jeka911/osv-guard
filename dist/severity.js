@@ -102,17 +102,38 @@ export function resolveSeverity(maxSeverity, databaseSpecific, vectors) {
         }
     }
     const named = normalizeBandName(databaseSpecific);
-    if (named)
-        return { band: named, score: null, source: 'database_specific' };
+    if (named) {
+        // The named band is authoritative — GitHub's rating can deliberately differ
+        // from the raw CVSS arithmetic — but a vector alongside it still carries a
+        // number worth showing. Reporting the band without a score would hide it.
+        return { band: named, score: maxVectorScore(vectors), source: 'database_specific' };
+    }
+    const score = maxVectorScore(vectors);
+    if (score !== null) {
+        const band = scoreToBand(score);
+        if (band)
+            return { band, score, source: 'cvss_v3' };
+    }
+    return { band: 'unknown', score: null, source: 'none' };
+}
+/**
+ * The highest scorable CVSS v3 vector on offer.
+ *
+ * A single flaw is often scored more than once — the GHSA record and the CVE
+ * it aliases can disagree, and both end up in the same group. osv-scanner's
+ * `max_severity` is, as the name says, the maximum; taking the first vector
+ * instead would under-report whenever the lower score happened to come first.
+ */
+function maxVectorScore(vectors) {
+    let best = null;
     for (const entry of vectors ?? []) {
         if (!entry?.score)
             continue;
         const score = cvss3BaseScore(entry.score);
         if (score === null)
             continue;
-        const band = scoreToBand(score);
-        if (band)
-            return { band, score, source: 'cvss_v3' };
+        if (best === null || score > best)
+            best = score;
     }
-    return { band: 'unknown', score: null, source: 'none' };
+    return best;
 }

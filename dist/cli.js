@@ -5,10 +5,13 @@ import { createColors } from './colors.js';
 import { UsageError, loadConfigFile, mergeOptions, parseArgv } from './config.js';
 import { HELP } from './help.js';
 import { applyPolicy } from './policy.js';
+import { chooseEngine, unsupportedWarnings } from './engine.js';
+import { findForeignManifests } from './lockfile.js';
 import { findLockfiles, resolveProjectDir } from './resolve.js';
 import { render } from './report.js';
 import { assertNotLooping, planRun, runCwd, runTarget, RecursionError } from './run.js';
-import { ScannerError, buildArgs, runScan } from './scanner.js';
+import { ScannerError, buildArgs, detectScannerVersion, runScan } from './scanner.js';
+import { runLocalScan } from './scanlocal.js';
 import { detectPackageManager } from './pm.js';
 import { TargetError, resolveTarget } from './target.js';
 import { VERSION } from './version.js';
@@ -67,13 +70,32 @@ async function main(argv) {
         }
     }
     const lockfiles = findLockfiles(dir);
-    if (lockfiles.length === 0 && !options.allowNoLockfile) {
+    const foreign = findForeignManifests(dir);
+    // Which engine runs decides what counts as "nothing to scan": osv-scanner
+    // would happily resolve a Cargo.lock the built-in engine cannot read.
+    const choice = chooseEngine({
+        requested: options.scanner,
+        explicit: parsed.cliOptions.scanner !== undefined || config.scanner !== undefined,
+        offline: options.offline,
+        lockfiles,
+        foreign,
+        hasBinary: () => detectScannerVersion(options.scannerBin) !== null,
+    });
+    if (options.verbose) {
+        warn(colors.gray(`osv-guard: engine ${choice.engine} (${choice.reason})`));
+    }
+    // In quiet mode a guarded script would otherwise carry three lines of
+    // preamble on every run. The headline still goes out — silence from a guard
+    // reads as "clean", and an unchecked ecosystem is not that.
+    emitWarnings(choice.warnings, options.quiet, colors);
+    const nothingToScan = choice.engine === 'builtin' ? lockfiles.length === 0 : lockfiles.length === 0 && foreign.length === 0;
+    if (nothingToScan && !options.allowNoLockfile) {
         throw new UsageError([
             `no lockfile found in ${dir}`,
             '',
-            'Without a lockfile osv-scanner has nothing to resolve, and an empty',
-            'result would look identical to a clean one. Run `npm install` first,',
-            'or pass --allow-no-lockfile if you accept an unchecked run.',
+            'Without a lockfile there is nothing to resolve, and an empty result',
+            'would look identical to a clean one. Run `npm install` first, or pass',
+            '--allow-no-lockfile if you accept an unchecked run.',
         ].join('\n'));
     }
     const scanOptions = {
@@ -88,13 +110,23 @@ async function main(argv) {
             dir,
             lockfiles,
             scannerVersion: null,
-            scanFlags: buildArgs(scanOptions).filter((a) => a !== dir),
+            scanFlags: [choice.engine, ...buildArgs(scanOptions).filter((a) => a !== dir)],
         })
         : null;
     if (key)
         scan = readCache(dir, key, options.cacheTtlMs);
     if (!scan) {
-        scan = await runScan(scanOptions);
+        if (choice.engine === 'builtin') {
+            const local = await runLocalScan({ dir, lockfiles });
+            emitWarnings(unsupportedWarnings(local.lockfileScan.unsupported), false, colors);
+            if (options.verbose) {
+                warn(colors.gray(`osv-guard: queried OSV for ${local.packagesScanned} packages`));
+            }
+            scan = local;
+        }
+        else {
+            scan = await runScan(scanOptions);
+        }
         if (key)
             writeCache(dir, key, scan);
     }
@@ -153,6 +185,12 @@ async function runHook(cliOptions) {
         return 0;
     }
     return 0;
+}
+/** Detail lines are dropped in quiet mode; the first line never is. */
+function emitWarnings(lines, quiet, colors) {
+    for (const line of quiet ? lines.slice(0, 1) : lines) {
+        warn(colors.yellow(`osv-guard: ${line}`));
+    }
 }
 function warn(message) {
     process.stderr.write(`${message}\n`);

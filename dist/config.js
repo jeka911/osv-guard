@@ -13,6 +13,7 @@ export const DEFAULTS = {
     cacheTtlMs: 60 * 60 * 1000,
     offline: false,
     allVulns: false,
+    scanner: 'builtin',
     scannerBin: 'osv-scanner',
     packageManager: undefined,
     // Seven days clears the window in which most malicious releases are caught
@@ -28,6 +29,16 @@ export class UsageError extends Error {
 }
 const BAND_SET = new Set(BANDS);
 const FORMATS = new Set(['pretty', 'json', 'summary']);
+const ENGINES = new Set(['builtin', 'osv-scanner', 'auto']);
+function asEngine(value, label) {
+    const v = value.trim().toLowerCase();
+    // `scanner` and `binary` read naturally for "use the real thing".
+    const normalized = v === 'scanner' || v === 'binary' ? 'osv-scanner' : v;
+    if (!ENGINES.has(normalized)) {
+        throw new UsageError(`${label} must be builtin, osv-scanner or auto (got "${value}")`);
+    }
+    return normalized;
+}
 /** Accepts `1h`, `30m`, `45s`, `500ms`; a bare number is seconds. */
 export function parseDuration(input) {
     const m = /^(\d+(?:\.\d+)?)(ms|s|m|h|d)?$/.exec(input.trim());
@@ -200,8 +211,14 @@ export function parseArgv(argv) {
             case '--all-vulns':
                 cli.allVulns = true;
                 break;
+            case '--scanner':
+            case '--engine':
+                cli.scanner = asEngine(value(), name);
+                break;
             case '--scanner-bin':
                 cli.scannerBin = value();
+                // Naming a binary is a clear statement that it should be used.
+                cli.scanner ??= 'osv-scanner';
                 break;
             case '--package-manager':
             case '--pm':
@@ -329,6 +346,9 @@ function coerceConfig(raw, label) {
     const allowNoLockfile = bool('allowNoLockfile');
     if (allowNoLockfile !== undefined)
         out.allowNoLockfile = allowNoLockfile;
+    const scanner = str('scanner');
+    if (scanner !== undefined)
+        out.scanner = asEngine(scanner, `${label}: scanner`);
     const scannerBin = str('scannerBin');
     if (scannerBin !== undefined)
         out.scannerBin = scannerBin;
