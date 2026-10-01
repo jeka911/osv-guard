@@ -441,3 +441,17 @@ test('a named band still reports a score when a vector is available', async () =
   assert.equal(resolved.score, 9.8);
   assert.equal(resolved.source, 'database_specific');
 });
+
+test('an osv-scanner.toml is flagged, because only the binary reads it', () => {
+  // Suppressions that silently stop applying are the worst kind of regression:
+  // the finding comes back, or the user believes it is still waived.
+  const choice = chooseEngine({ ...base, scannerToml: true });
+  assert.equal(choice.engine, 'builtin');
+  const text = choice.warnings.join('\n');
+  assert.match(text, /osv-scanner\.toml/);
+  assert.match(text, /osv-guard\.json/);
+});
+
+test('no osv-scanner.toml, no warning about one', () => {
+  assert.deepEqual(chooseEngine({ ...base, scannerToml: false }).warnings, []);
+});

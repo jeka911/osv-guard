@@ -20,6 +20,8 @@ export interface EngineInput {
         file: string;
         ecosystem: string;
     }[];
+    /** An osv-scanner.toml is present: only the binary knows how to read it. */
+    scannerToml?: boolean;
     /** Deferred so we only pay for probing the binary when the answer matters. */
     hasBinary: () => boolean;
 }

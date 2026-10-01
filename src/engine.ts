@@ -20,6 +20,8 @@ export interface EngineInput {
   /** Node lockfiles found under the scan root. */
   lockfiles: string[];
   foreign: { file: string; ecosystem: string }[];
+  /** An osv-scanner.toml is present: only the binary knows how to read it. */
+  scannerToml?: boolean;
   /** Deferred so we only pay for probing the binary when the answer matters. */
   hasBinary: () => boolean;
 }
@@ -82,17 +84,30 @@ export function chooseEngine(input: EngineInput): EngineChoice {
  * fails.
  */
 function builtinWarnings(input: EngineInput): string[] {
-  if (input.foreign.length === 0) return [];
+  const warnings: string[] = [];
+
+  // Suppressions in osv-scanner.toml are read by the binary, not by us. Losing
+  // them silently would quietly un-suppress advisories somebody deliberately
+  // accepted — or, worse, leave them thinking a finding is still suppressed.
+  if (input.scannerToml) {
+    warnings.push(
+      'osv-scanner.toml is only read by the osv-scanner binary — its suppressions are not applied',
+      '  move them to osv-guard.json ("ignore": [...]), or pass --scanner osv-scanner',
+    );
+  }
+
+  if (input.foreign.length === 0) return warnings;
 
   const ecosystems = [...new Set(input.foreign.map((m) => m.ecosystem))].sort();
   const sample = input.foreign.slice(0, 3).map((m) => m.file);
   const more = input.foreign.length - sample.length;
 
-  return [
+  warnings.push(
     `the built-in scanner reads Node lockfiles only — ${describe(input.foreign)} not checked`,
     `  ${sample.join(', ')}${more > 0 ? `, and ${more} more` : ''}`,
     `  install osv-scanner and pass --scanner osv-scanner to cover ${ecosystems.join(', ')}`,
-  ];
+  );
+  return warnings;
 }
 
 /** "2 Go, 1 PyPI manifests" — enough to tell the user what they are missing. */

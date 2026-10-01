@@ -65,8 +65,9 @@ CONFIG
 
     { "failOn": "high", "ignore": ["GHSA-xxxx-xxxx-xxxx"], "ignoreUnfixed": true }
 
-  Long-lived per-advisory suppressions are better kept in osv-scanner's own
-  osv-scanner.toml, which osv-guard picks up automatically.
+  An osv-scanner.toml is read by the osv-scanner binary only; under the
+  built-in scanner its suppressions do not apply (osv-guard warns if it finds
+  one). Keep long-lived suppressions in "ignore" in osv-guard.json instead.
 
 EXIT CODES
   0   scan passed (and the script exited 0)

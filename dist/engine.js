@@ -43,16 +43,20 @@ export function chooseEngine(input) {
  * fails.
  */
 function builtinWarnings(input) {
+    const warnings = [];
+    // Suppressions in osv-scanner.toml are read by the binary, not by us. Losing
+    // them silently would quietly un-suppress advisories somebody deliberately
+    // accepted — or, worse, leave them thinking a finding is still suppressed.
+    if (input.scannerToml) {
+        warnings.push('osv-scanner.toml is only read by the osv-scanner binary — its suppressions are not applied', '  move them to osv-guard.json ("ignore": [...]), or pass --scanner osv-scanner');
+    }
     if (input.foreign.length === 0)
-        return [];
+        return warnings;
     const ecosystems = [...new Set(input.foreign.map((m) => m.ecosystem))].sort();
     const sample = input.foreign.slice(0, 3).map((m) => m.file);
     const more = input.foreign.length - sample.length;
-    return [
-        `the built-in scanner reads Node lockfiles only — ${describe(input.foreign)} not checked`,
-        `  ${sample.join(', ')}${more > 0 ? `, and ${more} more` : ''}`,
-        `  install osv-scanner and pass --scanner osv-scanner to cover ${ecosystems.join(', ')}`,
-    ];
+    warnings.push(`the built-in scanner reads Node lockfiles only — ${describe(input.foreign)} not checked`, `  ${sample.join(', ')}${more > 0 ? `, and ${more} more` : ''}`, `  install osv-scanner and pass --scanner osv-scanner to cover ${ecosystems.join(', ')}`);
+    return warnings;
 }
 /** "2 Go, 1 PyPI manifests" — enough to tell the user what they are missing. */
 function describe(foreign) {

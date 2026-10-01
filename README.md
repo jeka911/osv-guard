@@ -196,7 +196,7 @@ A `--max-<band>` budget replaces the threshold **for that band only**, so `--fai
 
 Ignore entries that match nothing are reported, so stale suppressions don't quietly rot.
 
-For long-lived, per-advisory suppressions prefer osv-scanner's own `osv-scanner.toml`, which osv-guard picks up automatically.
+An `osv-scanner.toml` is read by the **osv-scanner binary only**. Under the default built-in scanner its suppressions do not apply, and osv-guard warns if it finds one — put long-lived suppressions in `ignore` in the [config file](#config-file) instead, which both engines honour.
 
 ### Scanning
 

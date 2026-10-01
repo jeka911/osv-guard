@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { cacheKey, readCache, writeCache } from './cache.js';
 import { createColors } from './colors.js';
 import { UsageError, loadConfigFile, mergeOptions, parseArgv } from './config.js';
@@ -79,6 +80,7 @@ async function main(argv) {
         offline: options.offline,
         lockfiles,
         foreign,
+        scannerToml: existsSync(path.join(dir, 'osv-scanner.toml')),
         hasBinary: () => detectScannerVersion(options.scannerBin) !== null,
     });
     if (options.verbose) {
