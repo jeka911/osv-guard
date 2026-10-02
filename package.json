@@ -1,6 +1,6 @@
 {
   "name": "osv-guard",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Guard npm/pnpm/yarn/bun scripts and commands behind an OSV vulnerability check. No binary required.",
   "type": "module",
   "bin": {

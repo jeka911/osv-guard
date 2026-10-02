@@ -1,7 +1,7 @@
 {
   "name": "osv-guard",
   "description": "Blocks installs of malicious or vulnerable packages before they land. Checks every package an agent is about to install against the OSV database — no API key, no account.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "homepage": "https://github.com/jeka-kiselyov/osv-guard",
   "repository": "https://github.com/jeka-kiselyov/osv-guard",
   "license": "MIT",
