@@ -1,8 +1,8 @@
 {
   "name": "osv-guard",
   "owner": {
-    "name": "jeka-kiselyov",
-    "url": "https://github.com/jeka-kiselyov"
+    "name": "jeka911",
+    "url": "https://github.com/jeka911"
   },
   "metadata": {
     "description": "Blocks malicious and vulnerable package installs before they land, using the OSV database.",
@@ -14,8 +14,8 @@
       "source": "./",
       "description": "Checks every package your agent is about to install against OSV. Malicious packages are blocked outright; vulnerable ones ask first. Covers npm, pnpm, yarn, bun, pip, uv and poetry. No API key, no account.",
       "version": "0.6.0",
-      "homepage": "https://github.com/jeka-kiselyov/osv-guard",
-      "repository": "https://github.com/jeka-kiselyov/osv-guard",
+      "homepage": "https://github.com/jeka911/osv-guard",
+      "repository": "https://github.com/jeka911/osv-guard",
       "license": "MIT",
       "keywords": [
         "security",

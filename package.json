@@ -41,12 +41,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jeka-kiselyov/osv-guard.git"
+    "url": "git+https://github.com/jeka911/osv-guard.git"
   },
   "bugs": {
-    "url": "https://github.com/jeka-kiselyov/osv-guard/issues"
+    "url": "https://github.com/jeka911/osv-guard/issues"
   },
-  "homepage": "https://github.com/jeka-kiselyov/osv-guard#readme",
+  "homepage": "https://github.com/jeka911/osv-guard#readme",
   "engines": {
     "node": ">=18"
   },

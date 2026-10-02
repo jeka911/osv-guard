@@ -16,7 +16,7 @@ They cover different halves of the same problem. The CLI checks what is already 
 Blocks your agent from installing packages OSV knows are malicious.
 
 ```bash
-claude plugin marketplace add jeka-kiselyov/osv-guard
+claude plugin marketplace add jeka911/osv-guard
 claude plugin install osv-guard@osv-guard
 ```
 

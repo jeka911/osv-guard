@@ -288,5 +288,5 @@ function writeAdvisory(id, modified, record) {
     }
 }
 function userAgent() {
-    return `osv-guard/${VERSION} (+https://github.com/jeka-kiselyov/osv-guard)`;
+    return `osv-guard/${VERSION} (+https://github.com/jeka911/osv-guard)`;
 }
