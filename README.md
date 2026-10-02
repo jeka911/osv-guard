@@ -5,7 +5,7 @@ Two guards against known-bad dependencies, both backed by the [OSV](https://osv.
 | | What it stops | Needs |
 | --- | --- | --- |
 | [**Claude Code plugin**](#claude-code-plugin) | An agent **installing** a malicious or vulnerable package | Nothing but Claude Code |
-| [**npm run guard**](#cli) | **Executing** `npm run` commands and scripts against a vulnerable lockfile | Nothing but Node 18+ |
+| [**osv-guard CLI**](#cli) | **Running** scripts and commands against a vulnerable lockfile | Nothing but Node 18+ |
 
 They cover different halves of the same problem. The CLI checks what is already in your lockfile before it lets a script start. The plugin checks a package *before* your agent is allowed to install it — the gap the CLI cannot reach, because once a bad dependency is in the lockfile its install scripts have already run.
 
