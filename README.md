@@ -112,7 +112,7 @@ osv-guard --scanner auto report             # use it when installed, else built-
 
 Point at a non-`PATH` install with `--scanner-bin`, which selects the binary on its own.
 
-Findings are identical either way: both read the same OSV data, and both collapse a flaw's GHSA and CVE ids into one finding. Scores can differ by a decimal on advisories that publish only a CVSS **v4** vector, which the built-in scanner reports by band rather than approximating.
+Findings are identical either way: both read the same OSV data, and both collapse a flaw's GHSA and CVE ids into one finding. Scores can differ by a decimal where an advisory also carries a CVSS **v4** vector, which the built-in scanner doesn't score — the band is unaffected.
 
 If osv-guard finds a Go, Python, Rust or other non-Node manifest while the built-in scanner is running, it says so rather than letting the silence read as *clean*:
 
@@ -207,7 +207,7 @@ An `osv-scanner.toml` is read by the **osv-scanner binary only**. Under the defa
 | `--scanner-bin <path>` | osv-scanner binary (default: `osv-scanner`); implies `--scanner osv-scanner` |
 | `--package-manager <pm>` | Force `npm`, `pnpm`, `yarn` or `bun` instead of detecting |
 | `--offline` | Use osv-scanner's local database, no network (implies `--scanner osv-scanner`) |
-| `--all-vulns` | Include findings osv-scanner considers unimportant or uncalled |
+| `--all-vulns` | Include findings osv-scanner considers unimportant or uncalled (binary only; the built-in scanner never filters) |
 | `--allow-no-lockfile` | Don't fail when no lockfile is present |
 | `--cache` | Reuse a recent scan for the same lockfile (**off by default**) |
 | `--cache-ttl <duration>` | Cache lifetime — `30s`, `15m`, `1h` (default `1h`; implies `--cache`) |
@@ -218,7 +218,9 @@ Off by default: a guard that can return a stale answer isn't much of a guard. Wh
 
 Policy flags are applied *after* the cache, so tightening `--fail-on` or adding an `--ignore` takes effect without a rescan.
 
-Cached results live in `node_modules/.cache/osv-guard/`.
+Cached scan results live in `node_modules/.cache/osv-guard/`.
+
+Separately, the built-in scanner always keeps downloaded advisory details in `~/.cache/osv-guard/advisories/` (or under `$XDG_CACHE_HOME`). Each is keyed on the `modified` timestamp OSV returns, so an entry can't go stale, and it never skips the lookup for *which* advisories affect your lockfile — only the re-download of their text.
 
 #### Monorepos
 
